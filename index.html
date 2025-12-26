@@ -1,391 +1,963 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Isla Calavera - Contador de Puntos</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'Arial', sans-serif;
-            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f0f23 100%);
-            color: #f0f0f0;
-            min-height: 100vh;
-            overflow-x: hidden;
-        }
-
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-
-        header {
-            text-align: center;
-            margin-bottom: 30px;
-            padding: 20px;
-            background: rgba(0,0,0,0.3);
-            border-radius: 15px;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.4);
-        }
-
-        h1 {
-            font-size: 2.5em;
-            background: linear-gradient(45deg, #ffd700, #ffed4e, #ff6b35);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            margin-bottom: 10px;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
-        }
-
-        .subtitle {
-            color: #b0b0b0;
-            font-size: 1.2em;
-        }
-
-        .controls {
-            display: flex;
-            gap: 15px;
-            justify-content: center;
-            flex-wrap: wrap;
-            margin-bottom: 30px;
-        }
-
-        button {
-            padding: 12px 24px;
-            border: none;
-            border-radius: 25px;
-            font-size: 1.1em;
-            font-weight: bold;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-        }
-
-        .btn-primary {
-            background: linear-gradient(45deg, #ffd700, #ffed4e);
-            color: #1a1a2e;
-        }
-
-        .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(255,215,0,0.4);
-        }
-
-        .btn-secondary {
-            background: linear-gradient(45deg, #ff6b35, #f7931e);
-            color: white;
-        }
-
-        .btn-secondary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(255,107,53,0.4);
-        }
-
-        .btn-danger {
-            background: linear-gradient(45deg, #6c757d, #495057);
-            color: white;
-        }
-
-        .players-section {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 20px;
-            margin-bottom: 30px;
-        }
-
-        .player-card {
-            background: rgba(255,255,255,0.1);
-            backdrop-filter: blur(10px);
-            border-radius: 15px;
-            padding: 20px;
-            border: 1px solid rgba(255,255,255,0.2);
-            transition: transform 0.3s ease;
-        }
-
-        .player-card:hover {
-            transform: translateY(-5px);
-        }
-
-        .player-header {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            margin-bottom: 15px;
-        }
-
-        .player-name {
-            font-size: 1.3em;
-            font-weight: bold;
-            color: #ffd700;
-        }
-
-        .player-score {
-            font-size: 2em;
-            font-weight: bold;
-            text-align: center;
-            margin: 10px 0;
-            background: linear-gradient(45deg, #00ff88, #00cc6a);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-
-        .rounds-list {
-            list-style: none;
-            max-height: 200px;
-            overflow-y: auto;
-            background: rgba(0,0,0,0.3);
-            border-radius: 10px;
-            padding: 10px;
-        }
-
-        .round-item {
-            display: flex;
-            justify-content: space-between;
-            padding: 5px 0;
-            font-size: 0.9em;
-            border-bottom: 1px solid rgba(255,255,255,0.1);
-        }
-
-        .round-item:last-child {
-            border-bottom: none;
-        }
-
-        .score-inputs {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
-            gap: 10px;
-            margin-top: 15px;
-        }
-
-        input[type="number"] {
-            width: 100%;
-            padding: 8px;
-            border: 2px solid rgba(255,255,255,0.3);
-            border-radius: 8px;
-            background: rgba(0,0,0,0.5);
-            color: #fff;
-            font-size: 1em;
-            text-align: center;
-        }
-
-        input[type="number"]:focus {
-            outline: none;
-            border-color: #ffd700;
-            box-shadow: 0 0 10px rgba(255,215,0,0.5);
-        }
-
-        .game-winner {
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: linear-gradient(45deg, #ffd700, #ffed4e);
-            color: #1a1a2e;
-            padding: 40px;
-            border-radius: 20px;
-            text-align: center;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.5);
-            z-index: 1000;
-            display: none;
-            max-width: 90vw;
-        }
-
-        .winner-trophy {
-            font-size: 4em;
-            margin-bottom: 20px;
-        }
-
-        @media (max-width: 768px) {
-            .controls {
-                flex-direction: column;
-                align-items: center;
-            }
-            
-            h1 {
-                font-size: 2em;
-            }
-            
-            .players-section {
-                grid-template-columns: 1fr;
-            }
-        }
-
-        .skull {
-            color: #ff4444;
-            font-size: 1.2em;
-        }
-    </style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Isla Calavera - Contador</title>
+  <style>
+    :root{
+      --bg1:#0f0f23; --bg2:#16213e; --bg3:#1a1a2e;
+      --card:rgba(255,255,255,.10);
+      --card2:rgba(0,0,0,.35);
+      --b:rgba(255,255,255,.18);
+      --gold:#ffd700;
+      --orange:#ff6b35;
+      --good:#00cc6a;
+      --bad:#ff4444;
+      --txt:#f0f0f0;
+      --muted:#b0b0b0;
+    }
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      min-height:100vh;
+      background:linear-gradient(135deg,var(--bg3) 0%,var(--bg2) 50%,var(--bg1) 100%);
+      color:var(--txt);
+    }
+    .container{max-width:1100px;margin:0 auto;padding:16px}
+    header{
+      text-align:center;margin:10px 0 18px;
+      padding:16px;border-radius:14px;background:rgba(0,0,0,.3);
+      border:1px solid rgba(255,255,255,.12);
+      box-shadow:0 8px 32px rgba(0,0,0,.4);
+    }
+    h1{
+      font-size:2.15rem;
+      background:linear-gradient(45deg,var(--gold),#ffed4e,var(--orange));
+      -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+      margin-bottom:6px;
+    }
+    .subtitle{color:var(--muted)}
+    .row{display:flex;gap:12px;flex-wrap:wrap}
+    .card{
+      background:var(--card);
+      border:1px solid var(--b);
+      backdrop-filter: blur(10px);
+      border-radius:14px;
+      padding:14px;
+      box-shadow:0 8px 22px rgba(0,0,0,.28);
+    }
+    .card h2{font-size:1.1rem;margin-bottom:10px;color:var(--gold)}
+    .btn{
+      appearance:none;border:0;cursor:pointer;
+      padding:11px 16px;border-radius:999px;
+      font-weight:700;font-size:1rem;
+      box-shadow:0 5px 18px rgba(0,0,0,.25);
+      transition:transform .12s ease, filter .12s ease;
+      user-select:none;
+    }
+    .btn:active{transform:translateY(1px)}
+    .btn-primary{background:linear-gradient(45deg,var(--gold),#ffed4e);color:#1a1a2e}
+    .btn-secondary{background:linear-gradient(45deg,var(--orange),#f7931e);color:#111}
+    .btn-ghost{background:rgba(255,255,255,.10);color:var(--txt);border:1px solid var(--b)}
+    .btn-danger{background:linear-gradient(45deg,#6c757d,#495057);color:#fff}
+    .grid{
+      display:grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap:12px;
+    }
+    label{display:block;font-size:.92rem;color:var(--muted);margin:10px 0 6px}
+    input[type="text"], select{
+      width:100%;
+      padding:10px 10px;
+      border-radius:10px;
+      border:1px solid var(--b);
+      background:rgba(0,0,0,.38);
+      color:var(--txt);
+      outline:none;
+    }
+    input[type="text"]:focus, select:focus{border-color:rgba(255,215,0,.75);box-shadow:0 0 0 2px rgba(255,215,0,.20)}
+    .pill{
+      display:inline-flex;align-items:center;gap:8px;
+      padding:8px 10px;border-radius:999px;
+      background:rgba(0,0,0,.32);border:1px solid rgba(255,255,255,.10);
+      color:var(--txt);
+      font-weight:650;
+    }
+    .pill small{color:var(--muted);font-weight:600}
+    .score{
+      font-size:1.9rem;font-weight:900;
+      background:linear-gradient(45deg,#00ff88,var(--good));
+      -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+    }
+    .muted{color:var(--muted)}
+    .notice{padding:10px 12px;border-radius:12px;background:rgba(0,0,0,.35);border:1px solid rgba(255,255,255,.10)}
+    .notice.good{border-color:rgba(0,204,106,.35)}
+    .notice.bad{border-color:rgba(255,68,68,.35)}
+    .divider{height:1px;background:rgba(255,255,255,.10);margin:12px 0}
+    .kv{display:flex;justify-content:space-between;gap:12px;margin:6px 0}
+    .kv b{color:var(--txt)}
+    .counter{
+      display:flex;align-items:center;justify-content:space-between;gap:10px;
+      padding:10px;border-radius:12px;background:rgba(0,0,0,.28);border:1px solid rgba(255,255,255,.10);
+    }
+    .counter .name{font-weight:800}
+    .counter .sub{font-size:.85rem;color:var(--muted)}
+    .counter .ctl{display:flex;align-items:center;gap:8px}
+    .mini{
+      width:36px;height:36px;border-radius:10px;border:1px solid rgba(255,255,255,.14);
+      background:rgba(255,255,255,.10);color:var(--txt);
+      font-size:1.1rem;font-weight:900;cursor:pointer;
+    }
+    .mini:active{transform:translateY(1px)}
+    .num{
+      min-width:32px;text-align:center;font-weight:900;font-size:1.05rem;
+    }
+    .modal{
+      position:fixed;inset:0;display:none;align-items:center;justify-content:center;
+      background:rgba(0,0,0,.55);padding:18px;z-index:9999;
+    }
+    .modal .box{
+      width:min(560px, 100%);
+      background:linear-gradient(180deg, rgba(255,255,255,.12), rgba(0,0,0,.35));
+      border:1px solid rgba(255,255,255,.18);
+      border-radius:18px;
+      padding:18px;
+      box-shadow:0 20px 50px rgba(0,0,0,.6);
+    }
+    .modal h3{color:var(--gold);margin-bottom:8px}
+    .right{display:flex;justify-content:flex-end;gap:10px;flex-wrap:wrap}
+    .small{font-size:.92rem}
+    @media (max-width: 720px){
+      h1{font-size:1.85rem}
+      .container{padding:12px}
+    }
+  </style>
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1>🏴‍☠️ Isla Calavera</h1>
-            <p class="subtitle">Contador de Puntos Automático</p>
-        </header>
+  <div class="container">
+    <header>
+      <h1>🏴‍☠️ Isla Calavera</h1>
+      <div class="subtitle">Contador de puntuación con cartas y dados (2–5 jugadores)</div>
+    </header>
 
-        <div class="controls">
-            <button class="btn-primary" onclick="newGame()">🆕 Nueva Partida</button>
-            <button class="btn-secondary" onclick="addRound()">➕ Siguiente Ronda</button>
-            <button class="btn-danger" onclick="resetGame()" style="display: none;" id="resetBtn">🔄 Reiniciar</button>
-        </div>
+    <main id="app"></main>
+  </div>
 
-        <div class="players-section" id="playersSection" style="display: none;">
-            <!-- Los jugadores se generarán aquí dinámicamente -->
-        </div>
+  <div class="modal" id="modal">
+    <div class="box">
+      <h3 id="modalTitle"></h3>
+      <div id="modalBody" class="small muted"></div>
+      <div class="divider"></div>
+      <div class="right">
+        <button class="btn btn-ghost" id="modalCancel">Cancelar</button>
+        <button class="btn btn-primary" id="modalOk">Aceptar</button>
+      </div>
+    </div>
+  </div>
 
-        <div class="game-winner" id="winnerModal">
-            <div class="winner-trophy">🏆</div>
-            <h2 id="winnerName"></h2>
-            <p>¡Ha ganado la partida!</p>
-            <button class="btn-primary" onclick="newGame()" style="margin-top: 20px; padding: 15px 30px; font-size: 1.2em;">🎮 Nueva Partida</button>
-        </div>
+<script>
+/**
+ * Reglas implementadas según reglamento ES: sets 3..8, monedas/diamantes valen 100 cada una
+ * y además puntúan por combinación, cofre completo +500, 3 calaveras = 0, Isla Calavera, cartas:
+ * Botín, Pirata (x2 y en Isla 200 por calavera), Calavera (1/2), Hechicera, Barco Pirata, Moneda, Diamante, Animales [page:1].
+ */
+
+const DICE_TYPES = [
+  { key:'skull', label:'Calavera', emoji:'💀', max:8 },
+  { key:'saber', label:'Sable', emoji:'🗡️', max:8 },
+  { key:'monkey', label:'Mono', emoji:'🐒', max:8 },
+  { key:'parrot', label:'Loro', emoji:'🦜', max:8 },
+  { key:'gold', label:'Moneda', emoji:'🪙', max:8 },
+  { key:'diamond', label:'Diamante', emoji:'💎', max:8 },
+];
+
+const FORTUNE = [
+  { key:'none', label:'Sin carta / Normal' },
+  { key:'pirate', label:'Pirata (duplica puntos; Isla Calavera -200 por calavera)' },
+  { key:'animals', label:'Animales (Monos+Loros combinan juntos)' },
+  { key:'gold', label:'Moneda de Oro (+1 moneda al inicio)' },
+  { key:'diamond', label:'Diamante (+1 diamante al inicio)' },
+  { key:'skull1', label:'Calavera (+1 calavera al inicio; no hay bono)' },
+  { key:'skull2', label:'Calavera (+2 calaveras al inicio; no hay bono)' },
+  { key:'sorceress', label:'Hechicera (permite relanzar 1 calavera una vez)' },
+  { key:'ship2', label:'Barco Pirata (>=2 sables: +300; si no, penaliza -300)' },
+  { key:'ship3', label:'Barco Pirata (>=3 sables: +500; si no, penaliza -500)' },
+  { key:'ship4', label:'Barco Pirata (>=4 sables: +1000; si no, penaliza -1000)' },
+  // Botín (Treasure Chest) se implementará en la siguiente iteración con mecánica de "guardar dados";
+  // de momento se ofrece como "pendiente" para no romper tu flujo.
+  { key:'chest', label:'Botín (pendiente: requiere mecánica de guardar dados)' },
+];
+
+const SET_POINTS = { 3:100, 4:200, 5:500, 6:1000, 7:2000, 8:4000 };
+const TARGET_SCORE = 6000;
+
+function clampScore(mode, score){
+  if (mode === 'hardcore') return score;
+  return Math.max(0, score);
+}
+
+function randInt(n){ return Math.floor(Math.random() * n); }
+
+function modalConfirm({title, body, okText='Aceptar', cancelText='Cancelar'}){
+  return new Promise(resolve => {
+    const modal = document.getElementById('modal');
+    const t = document.getElementById('modalTitle');
+    const b = document.getElementById('modalBody');
+    const ok = document.getElementById('modalOk');
+    const cancel = document.getElementById('modalCancel');
+
+    t.textContent = title;
+    b.textContent = body;
+    ok.textContent = okText;
+    cancel.textContent = cancelText;
+
+    const cleanup = (v) => {
+      ok.onclick = null; cancel.onclick = null;
+      modal.style.display = 'none';
+      resolve(v);
+    };
+    ok.onclick = () => cleanup(true);
+    cancel.onclick = () => cleanup(false);
+    modal.style.display = 'flex';
+  });
+}
+
+// Estado (máquina de pantallas)
+const state = {
+  screen: 'setup', // setup | names | turn | skullIsland | finished
+  mode: 'normal', // normal | hardcore
+  numPlayers: 2,
+  players: [],
+  currentPlayerIndex: 0,
+  round: 1,
+
+  // turno actual
+  turn: {
+    fortune: 'none',
+    dice: initDiceCounts(),  // incluye ya el bonus de la carta cuando se seleccione
+    computed: {
+      canConfirm: false,
+      totalDice: 0,
+      skullsTotal: 0,
+      points: 0,
+      fullChestBonus: 0,
+      shipBonusOrPenalty: 0,
+      pirateMultiplier: 1,
+      notes: [],
+      bust: false,
+      canSkullIsland: false,
+      skullIslandBaseSkulls: 0,
+    }
+  },
+
+  // isla calavera
+  skullIsland: {
+    collectedSkulls: 0
+  }
+};
+
+function initDiceCounts(){
+  return { skull:0, saber:0, monkey:0, parrot:0, gold:0, diamond:0 };
+}
+
+function totalDice(d){ return Object.values(d).reduce((a,b)=>a+b,0); }
+
+function applyFortuneBaseDice(fortuneKey){
+  // Base dice counts from fortune card, per rules (start with extra symbols) [page:1].
+  const base = initDiceCounts();
+  if (fortuneKey === 'gold') base.gold += 1;
+  if (fortuneKey === 'diamond') base.diamond += 1;
+  if (fortuneKey === 'skull1') base.skull += 1;
+  if (fortuneKey === 'skull2') base.skull += 2;
+  return base;
+}
+
+function mergeDice(base, picked){
+  const out = initDiceCounts();
+  for (const k of Object.keys(out)){
+    out[k] = (base[k]||0) + (picked[k]||0);
+  }
+  return out;
+}
+
+function computeTurn(mode, fortuneKey, diceCounts){
+  const notes = [];
+  const baseFromCard = applyFortuneBaseDice(fortuneKey);
+  const d = diceCounts;
+
+  const diceTotal = totalDice(d);
+  const skullsTotal = d.skull;
+
+  const bust = skullsTotal >= 3; // 3 calaveras termina sin puntos [page:1]
+  const pirateMultiplier = (fortuneKey === 'pirate') ? 2 : 1;
+
+  const computed = {
+    canConfirm: diceTotal === 8, // seleccion de 8 dados (solo dados físicos; el +1 de carta no cuenta como "dado físico")
+    totalDice: diceTotal,
+    skullsTotal,
+    points: 0,
+    fullChestBonus: 0,
+    shipBonusOrPenalty: 0,
+    pirateMultiplier,
+    notes,
+    bust,
+    canSkullIsland: false,
+    skullIslandBaseSkulls: 0,
+  };
+
+  // Regla: Isla Calavera si en la primera tirada con 8 dados salen 4+ calaveras [page:1].
+  // Aquí asumimos "confirmar" equivale a cerrar primera tirada (porque la app no simula rerolls).
+  // MVP: se activa si skullsTotal (incluyendo calaveras de carta) >=4 Y totalDice=8.
+  if (computed.canConfirm && skullsTotal >= 4){
+    computed.canSkullIsland = true;
+    computed.skullIslandBaseSkulls = skullsTotal;
+    computed.points = 0;
+    notes.push('Isla Calavera activada: los demás símbolos no puntúan.');
+    return computed;
+  }
+
+  if (!computed.canConfirm){
+    notes.push(`Selecciona ${8 - diceTotal} dado(s) más para confirmar.`);
+    return computed;
+  }
+
+  if (bust){
+    computed.points = 0;
+    notes.push('3+ calaveras: el turno termina y puntúas 0.');
+    return computed;
+  }
+
+  // Puntuación base por sets y por monedas/diamantes [page:1].
+  // Si Animals: mono+loro se cuentan juntos como un tipo [page:1].
+  const counts = {...d};
+
+  // Nota importante: monedas y diamantes tienen doble vía: 100 por símbolo y además por set [page:1].
+  // Implementación:
+  // - faceValue = (gold+diamond)*100
+  // - setScore: para cada tipo que tenga >=3, suma puntos según tamaño
+  // - y si full chest (todos los 8 dados puntúan) +500 [page:1]
+  let faceValue = (counts.gold + counts.diamond) * 100;
+
+  const setTypes = [];
+
+  if (fortuneKey === 'animals'){
+    const animals = counts.monkey + counts.parrot;
+    setTypes.push({ key:'animals', n: animals });
+    counts.monkey = 0;
+    counts.parrot = 0;
+    notes.push('Carta Animales: monos+loros combinan en un único set.');
+  } else {
+    setTypes.push({ key:'monkey', n: counts.monkey });
+    setTypes.push({ key:'parrot', n: counts.parrot });
+  }
+
+  setTypes.push({ key:'saber', n: counts.saber });
+  setTypes.push({ key:'gold', n: counts.gold });
+  setTypes.push({ key:'diamond', n: counts.diamond });
+
+  let setScore = 0;
+  for (const t of setTypes){
+    if (t.n >= 3){
+      setScore += SET_POINTS[t.n] || 0;
+    }
+  }
+
+  // Barco Pirata: requiere X sables; si cumple, suma bonus, si no, 0 puntos y resta lo indicado [page:1].
+  // Las combinaciones de sables se cuentan normalmente además del bonus si se cumple [page:1].
+  let shipReq = null;
+  let shipValue = 0;
+  if (fortuneKey === 'ship2'){ shipReq = 2; shipValue = 300; }
+  if (fortuneKey === 'ship3'){ shipReq = 3; shipValue = 500; }
+  if (fortuneKey === 'ship4'){ shipReq = 4; shipValue = 1000; }
+
+  if (shipReq !== null){
+    if (counts.saber >= shipReq){
+      computed.shipBonusOrPenalty = shipValue;
+      notes.push(`Barco Pirata: cumples ${shipReq} sables, +${shipValue}.`);
+    } else {
+      // falla barco: 0 puntos y penalización negativa [page:1]
+      computed.shipBonusOrPenalty = -shipValue;
+      notes.push(`Barco Pirata: no llegas a ${shipReq} sables, 0 puntos y -${shipValue}.`);
+      computed.points = clampScore(mode, computed.shipBonusOrPenalty * pirateMultiplier); // el reglamento no especifica si Pirata duplica esta penalización, aquí lo duplico por coherencia con "puntos anotados" del turno.
+      return computed;
+    }
+  }
+
+  // Cofre completo: si genera puntos con los 8 dados, +500 [page:1].
+  // En este modelo sin rerolls, interpretamos “anotar con cada uno de los ocho dados” como:
+  // - no hay calaveras y
+  // - todos los 8 dados son parte del cálculo (siempre) y
+  // - existe alguna puntuación (faceValue o setScore o ship bonus).
+  // Además, el reglamento indica que con una calavera no hay bonificación posible [page:1].
+  const anyPoints = (faceValue + setScore + Math.max(0, computed.shipBonusOrPenalty)) > 0;
+  if (counts.skull === 0 && anyPoints){
+    computed.fullChestBonus = 500;
+    notes.push('Cofre completo: +500.');
+  }
+
+  let points = faceValue + setScore + computed.fullChestBonus + computed.shipBonusOrPenalty;
+  points *= pirateMultiplier;
+
+  // Calavera(1/2): “El jugador no obtiene ningún Bono” [page:1].
+  // Interpretación MVP: anulamos el bonus de cofre completo si hay skull card.
+  if (fortuneKey === 'skull1' || fortuneKey === 'skull2'){
+    if (computed.fullChestBonus > 0){
+      points -= computed.fullChestBonus * pirateMultiplier;
+      computed.fullChestBonus = 0;
+      notes.push('Carta Calavera: no hay bono de cofre completo.');
+    }
+  }
+
+  computed.points = points;
+
+  // “Magia”: combinación de 9 dados (carta de moneda/diamante + 8 dados) => gana inmediatamente [page:1].
+  // Lo detectaremos al confirmar el turno y finalizar la partida.
+  return computed;
+}
+
+function computeSkullIslandPenaltyPerSkull(fortuneKey){
+  // En Isla Calavera se restan 100 por calavera a cada oponente [page:1],
+  // con carta Pirata serían 200 por calavera [page:1].
+  if (fortuneKey === 'pirate') return 200;
+  return 100;
+}
+
+function resetToSetup(){
+  state.screen = 'setup';
+  state.mode = 'normal';
+  state.numPlayers = 2;
+  state.players = [];
+  state.currentPlayerIndex = 0;
+  state.round = 1;
+  state.turn.fortune = 'none';
+  state.turn.dice = initDiceCounts();
+  state.turn.computed = computeTurn(state.mode, state.turn.fortune, state.turn.dice);
+  state.skullIsland.collectedSkulls = 0;
+  render();
+}
+
+function startNamesScreen(){
+  state.players = Array.from({length: state.numPlayers}, (_, i) => ({
+    id: cryptoRandomId(),
+    name: `Pirata ${String.fromCharCode(65+i)}`,
+    score: 0
+  }));
+  state.screen = 'names';
+  render();
+}
+
+function cryptoRandomId(){
+  // Compatible: fallback si no hay crypto
+  try{
+    const a = new Uint32Array(2);
+    crypto.getRandomValues(a);
+    return `${a[0].toString(16)}${a[1].toString(16)}`;
+  }catch{
+    return Math.random().toString(16).slice(2);
+  }
+}
+
+function beginGame(){
+  // Jugador inicial aleatorio (tu requisito) aunque el reglamento diga “el más joven” [page:1].
+  state.currentPlayerIndex = randInt(state.players.length);
+  state.round = 1;
+  startTurn();
+}
+
+function startTurn(){
+  state.screen = 'turn';
+  state.turn.fortune = 'none';
+  state.turn.dice = initDiceCounts();
+  state.turn.computed = computeTurn(state.mode, state.turn.fortune, state.turn.dice);
+  render();
+}
+
+function setFortune(fKey){
+  state.turn.fortune = fKey;
+
+  // Al cambiar carta, reseteamos selección de dados físicos (para evitar inconsistencias).
+  state.turn.dice = initDiceCounts();
+
+  state.turn.computed = computeTurn(state.mode, state.turn.fortune, state.turn.dice);
+  render();
+}
+
+function adjustDie(key, delta){
+  const d = {...state.turn.dice};
+  d[key] = Math.max(0, (d[key]||0) + delta);
+  if (totalDice(d) > 8) return; // no permitir más de 8 dados físicos
+
+  state.turn.dice = d;
+  state.turn.computed = computeTurn(state.mode, state.turn.fortune, state.turn.dice);
+  render();
+}
+
+async function confirmDiceSelection(){
+  const c = state.turn.computed;
+  if (!c.canConfirm) return;
+
+  // Si Isla Calavera: pasar a fase especial [page:1].
+  if (c.canSkullIsland){
+    state.screen = 'skullIsland';
+    state.skullIsland.collectedSkulls = c.skullIslandBaseSkulls; // ya tiene las 4+ iniciales
+    render();
+    return;
+  }
+
+  // Aplicar puntos al jugador actual
+  const idx = state.currentPlayerIndex;
+  const player = state.players[idx];
+  player.score = clampScore(state.mode, player.score + c.points);
+
+  // “Magia de los piratas”: 9 dados (carta moneda/diamante + 8 dados del mismo símbolo) => gana inmediatamente [page:1].
+  // Lo comprobamos sólo para el caso explicitado (moneda extra o diamante extra) y 8 dados del mismo tipo.
+  const fortune = state.turn.fortune;
+  const d = state.turn.dice;
+  const base = applyFortuneBaseDice(fortune);
+  const all = mergeDice(base, d);
+
+  const magicWin =
+    (fortune === 'gold' && all.gold === 9) ||
+    (fortune === 'diamond' && all.diamond === 9);
+
+  if (magicWin){
+    state.screen = 'finished';
+    state.winnerId = player.id;
+    render();
+    return;
+  }
+
+  // Avanzar turno / gestionar fin por 6000 (MVP simplificado):
+  // Cuando alguien llega a 6000 o más, el juego entra en “final round”; aquí lo implemento simple:
+  // al terminar el turno que supera 6000, dejamos que todos los demás jueguen 1 turno y luego declaramos ganador.
+  // (El reglamento contempla un turno extra para el líder si le superan) [page:1].
+  if (!state.finalPhase && player.score >= TARGET_SCORE){
+    state.finalPhase = { triggerPlayerId: player.id, turnsRemaining: state.players.length - 1, leaderExtraTurn: false };
+  } else if (state.finalPhase){
+    if (player.id !== state.finalPhase.triggerPlayerId){
+      state.finalPhase.turnsRemaining -= 1;
+    }
+  }
+
+  // Siguiente jugador
+  nextPlayer();
+
+  // ¿Termina final phase?
+  if (state.finalPhase && state.finalPhase.turnsRemaining <= 0){
+    // Si alguien supera al trigger, el trigger tiene un último turno [page:1].
+    const trigger = state.players.find(p => p.id === state.finalPhase.triggerPlayerId);
+    const best = state.players.reduce((a,b)=> (b.score > a.score ? b : a), state.players[0]);
+    if (best.id !== trigger.id && !state.finalPhase.leaderExtraTurn){
+      state.finalPhase.leaderExtraTurn = true;
+      state.currentPlayerIndex = state.players.findIndex(p => p.id === trigger.id);
+      startTurn();
+      return;
+    }
+
+    // Si nadie >6000 al final de esa ronda, se sigue hasta que alguien >=6000 y gana inmediatamente [page:1].
+    // Aquí ya hay al menos el trigger >=6000, así que declaramos ganador por mayor puntuación.
+    state.screen = 'finished';
+    state.winnerId = best.id;
+    render();
+    return;
+  }
+
+  startTurn();
+}
+
+function nextPlayer(){
+  state.currentPlayerIndex = (state.currentPlayerIndex + 1) % state.players.length;
+  if (state.currentPlayerIndex === 0) state.round += 1;
+}
+
+function adjustSkullIsland(delta){
+  state.skullIsland.collectedSkulls = Math.max(0, state.skullIsland.collectedSkulls + delta);
+  render();
+}
+
+async function confirmSkullIsland(){
+  const idx = state.currentPlayerIndex;
+  const active = state.players[idx];
+
+  const perSkull = computeSkullIslandPenaltyPerSkull(state.turn.fortune);
+  const skulls = state.skullIsland.collectedSkulls;
+
+  const ok = await modalConfirm({
+    title: 'Confirmar Isla Calavera',
+    body: `Se aplicará una penalización de ${perSkull} por calavera a cada rival. Calaveras: ${skulls}.`,
+    okText: 'Aplicar',
+    cancelText: 'Volver'
+  });
+  if (!ok) return;
+
+  // Aplicar penalización a TODOS excepto activo [page:1].
+  for (const p of state.players){
+    if (p.id === active.id) continue;
+    p.score = clampScore(state.mode, p.score - perSkull * skulls);
+  }
+
+  // Tras Isla Calavera el jugador activo recibe 0 puntos [page:1].
+  // (ya está: no sumamos nada)
+  nextPlayer();
+  startTurn();
+}
+
+function setPlayerName(i, name){
+  state.players[i].name = name.trim().slice(0, 24) || state.players[i].name;
+}
+
+async function confirmNames(){
+  // Validación simple: nombres no vacíos
+  for (const p of state.players){
+    if (!p.name || !p.name.trim()){
+      await modalConfirm({title:'Nombre inválido', body:'Todos los jugadores deben tener nombre.', okText:'OK', cancelText:'Cerrar'});
+      return;
+    }
+  }
+  beginGame();
+}
+
+function winner(){
+  const w = state.players.find(p => p.id === state.winnerId);
+  if (w) return w;
+  // fallback
+  return state.players.reduce((a,b)=> (b.score > a.score ? b : a), state.players[0]);
+}
+
+function render(){
+  const app = document.getElementById('app');
+  app.innerHTML = '';
+
+  if (state.screen === 'setup') app.appendChild(renderSetup());
+  if (state.screen === 'names') app.appendChild(renderNames());
+  if (state.screen === 'turn') app.appendChild(renderTurn());
+  if (state.screen === 'skullIsland') app.appendChild(renderSkullIsland());
+  if (state.screen === 'finished') app.appendChild(renderFinished());
+}
+
+function renderSetup(){
+  const el = document.createElement('div');
+  el.className = 'grid';
+
+  const left = document.createElement('div');
+  left.className = 'card';
+  left.innerHTML = `
+    <h2>⚙️ Configuración</h2>
+
+    <label>Modo de juego</label>
+    <select id="modeSel">
+      <option value="normal">Normal (no baja de 0)</option>
+      <option value="hardcore">Hardcore (permite negativo)</option>
+    </select>
+
+    <label>Número de jugadores</label>
+    <div class="row" style="margin-top:8px">
+      <button class="btn btn-primary" data-n="2">2</button>
+      <button class="btn btn-primary" data-n="3">3</button>
+      <button class="btn btn-primary" data-n="4">4</button>
+      <button class="btn btn-primary" data-n="5">5</button>
     </div>
 
-    <script>
-        let gameState = {
-            players: [],
-            currentRound: 0,
-            maxPlayers: 5,
-            targetScore: 6000
-        };
+    <div class="divider"></div>
+    <div class="right">
+      <button class="btn btn-secondary" id="goNames">Continuar</button>
+    </div>
+    <div style="margin-top:10px" class="notice">
+      <div class="small muted">
+        Objetivo estándar: 6.000 puntos. Se usa 2–5 jugadores según el juego [page:1].
+      </div>
+    </div>
+  `;
 
-        // Inicializar la aplicación
-        document.addEventListener('DOMContentLoaded', function() {
-            showPlayerSetup();
-        });
+  const right = document.createElement('div');
+  right.className = 'card';
+  right.innerHTML = `
+    <h2>📌 Notas</h2>
+    <div class="small muted">
+      Esta versión calcula automáticamente sets, bonos, penalizaciones y cartas principales según el reglamento [page:1].<br><br>
+      La carta <b>Botín</b> está marcada como pendiente porque necesita la mecánica de “guardar dados en la carta” (lo implementamos en la siguiente iteración).
+    </div>
+  `;
 
-        function showPlayerSetup() {
-            const playersSection = document.getElementById('playersSection');
-            playersSection.innerHTML = `
-                <div style="text-align: center; grid-column: 1/-1; padding: 30px;">
-                    <h2>👥 Número de Jugadores</h2>
-                    <div style="display: flex; gap: 15px; justify-content: center; flex-wrap: wrap; margin-top: 20px;">
-                        ${Array.from({length: gameState.maxPlayers}, (_, i) => `
-                            <button class="btn-primary" onclick="startGame(${i + 2})" style="padding: 15px 25px; font-size: 1.3em;">
-                                ${i + 2} Jugador${i + 2 === 1 ? '' : 'es'}
-                            </button>
-                        `).join('')}
-                    </div>
-                </div>
-            `;
-            playersSection.style.display = 'block';
-            document.getElementById('resetBtn').style.display = 'none';
-        }
+  el.append(left, right);
 
-        function startGame(numPlayers) {
-            gameState.players = [];
-            for (let i = 0; i < numPlayers; i++) {
-                gameState.players.push({
-                    name: `Pirata ${String.fromCharCode(65 + i)}`,
-                    score: 0,
-                    rounds: []
-                });
-            }
-            gameState.currentRound = 0;
-            renderPlayers();
-            document.getElementById('resetBtn').style.display = 'inline-block';
-        }
+  // bind
+  const modeSel = left.querySelector('#modeSel');
+  modeSel.value = state.mode;
+  modeSel.onchange = (e) => { state.mode = e.target.value; };
 
-        function newGame() {
-            showPlayerSetup();
-            document.getElementById('winnerModal').style.display = 'none';
-        }
+  left.querySelectorAll('button[data-n]').forEach(btn => {
+    btn.onclick = () => { state.numPlayers = parseInt(btn.dataset.n,10); render(); };
+    // resaltado
+    if (parseInt(btn.dataset.n,10) === state.numPlayers){
+      btn.style.filter = 'brightness(1.08)';
+    }else{
+      btn.style.filter = 'brightness(.92)';
+    }
+  });
 
-        function addRound() {
-            gameState.currentRound++;
-            
-            // Obtener puntuaciones de inputs
-            gameState.players.forEach((player, index) => {
-                const scoreInput = document.querySelector(`#player-${index} .score-input`);
-                const roundScore = parseInt(scoreInput.value) || 0;
-                player.score += roundScore;
-                player.rounds.push(roundScore);
-                scoreInput.value = '';
-            });
+  left.querySelector('#goNames').onclick = () => startNamesScreen();
 
-            renderPlayers();
-            checkWinner();
-        }
+  return el;
+}
 
-        function resetGame() {
-            if (confirm('¿Seguro que quieres reiniciar la partida actual?')) {
-                gameState.currentRound = 0;
-                gameState.players.forEach(player => {
-                    player.score = 0;
-                    player.rounds = [];
-                });
-                renderPlayers();
-            }
-        }
+function renderNames(){
+  const el = document.createElement('div');
+  el.className = 'card';
 
-        function renderPlayers() {
-            const playersSection = document.getElementById('playersSection');
-            playersSection.innerHTML = gameState.players.map((player, index) => `
-                <div class="player-card">
-                    <div class="player-header">
-                        <span class="player-name">${player.name}</span>
-                        <span class="skull">💀</span>
-                    </div>
-                    <div class="player-score">${player.score.toLocaleString()} pts</div>
-                    <ul class="rounds-list">
-                        ${player.rounds.map((roundScore, rIndex) => `
-                            <li class="round-item">
-                                <span>R${gameState.currentRound - player.rounds.length + rIndex + 1}</span>
-                                <span>+${roundScore.toLocaleString()}</span>
-                            </li>
-                        `).join('')}
-                    </ul>
-                    <div class="score-inputs">
-                        <input type="number" class="score-input" placeholder="Puntos" min="0" id="player-${index}">
-                    </div>
-                </div>
-            `).join('');
+  el.innerHTML = `
+    <h2>👥 Jugadores</h2>
+    <div class="small muted">Edita los nombres y confirma para empezar. El jugador inicial será aleatorio.</div>
+    <div class="divider"></div>
+    <div id="namesGrid" class="grid"></div>
+    <div class="divider"></div>
+    <div class="right">
+      <button class="btn btn-ghost" id="back">Volver</button>
+      <button class="btn btn-secondary" id="confirm">Empezar partida</button>
+    </div>
+  `;
 
-            // Auto-focus en el primer input
-            const firstInput = document.querySelector('.score-input');
-            if (firstInput) firstInput.focus();
-        }
+  const grid = el.querySelector('#namesGrid');
+  state.players.forEach((p, i) => {
+    const c = document.createElement('div');
+    c.className = 'card';
+    c.style.background = 'rgba(0,0,0,.22)';
+    c.innerHTML = `
+      <div class="pill"><span>🏴‍☠️</span><span>${i+1}</span><small>Jugador</small></div>
+      <label>Nombre</label>
+      <input type="text" value="${escapeHtml(p.name)}" data-i="${i}" />
+      <div class="small muted" style="margin-top:8px">Puntuación inicial: 0</div>
+    `;
+    c.querySelector('input').oninput = (e) => setPlayerName(i, e.target.value);
+    grid.appendChild(c);
+  });
 
-        function checkWinner() {
-            const winner = gameState.players.find(player => player.score >= gameState.targetScore);
-            if (winner) {
-                document.getElementById('winnerName').textContent = winner.name;
-                document.getElementById('winnerModal').style.display = 'block';
-            }
-        }
+  el.querySelector('#back').onclick = () => { state.screen='setup'; render(); };
+  el.querySelector('#confirm').onclick = () => confirmNames();
 
-        // Permitir Enter para añadir ronda
-        document.addEventListener('keypress', function(e) {
-            if (e.key === 'Enter' && gameState.players.length > 0) {
-                addRound();
-            }
-        });
+  return el;
+}
 
-        // Soporte táctil para móviles
-        let touchStartY = 0;
-        document.addEventListener('touchstart', function(e) {
-            touchStartY = e.touches[0].clientY;
-        });
+function escapeHtml(s){
+  return String(s)
+    .replaceAll('&','&amp;')
+    .replaceAll('<','&lt;')
+    .replaceAll('>','&gt;')
+    .replaceAll('"','&quot;')
+    .replaceAll("'","&#039;");
+}
 
-        document.addEventListener('touchend', function(e) {
-            const touchEndY = e.changedTouches[0].clientY;
-            const touchDiff = touchStartY - touchEndY;
-            
-            if (Math.abs(touchDiff) > 50) {
-                if (touchDiff > 0) {
-                    // Swipe up - nueva ronda
-                    if (gameState.players.length > 0) addRound();
-                }
-            }
-        });
-    </script>
+function renderScoreboard(){
+  const wrap = document.createElement('div');
+  wrap.className = 'card';
+
+  const active = state.players[state.currentPlayerIndex];
+
+  wrap.innerHTML = `
+    <h2>📊 Marcador</h2>
+    <div class="row" style="justify-content:space-between;align-items:center">
+      <div class="pill">Ronda <b>${state.round}</b></div>
+      <div class="pill">Turno de <b>${escapeHtml(active.name)}</b></div>
+      <div class="pill"><small>Modo</small> ${state.mode === 'hardcore' ? 'Hardcore' : 'Normal'}</div>
+    </div>
+    <div class="divider"></div>
+    <div class="grid" id="sb"></div>
+  `;
+
+  const sb = wrap.querySelector('#sb');
+  const sorted = [...state.players].sort((a,b)=> b.score - a.score);
+  for (const p of sorted){
+    const c = document.createElement('div');
+    c.className = 'card';
+    c.style.background = 'rgba(0,0,0,.22)';
+    c.innerHTML = `
+      <div style="display:flex;justify-content:space-between;gap:12px;align-items:center">
+        <div style="font-weight:900;color:var(--gold)">${escapeHtml(p.name)}</div>
+        <div class="score">${p.score.toLocaleString('es-ES')}</div>
+      </div>
+    `;
+    sb.appendChild(c);
+  }
+  return wrap;
+}
+
+function renderTurn(){
+  const el = document.createElement('div');
+  el.className = 'grid';
+
+  const left = document.createElement('div');
+  left.className = 'card';
+
+  const c = state.turn.computed;
+
+  left.innerHTML = `
+    <h2>🎲 Turno</h2>
+
+    <label>Carta de acción</label>
+    <select id="fortuneSel">
+      ${FORTUNE.map(f => `<option value="${f.key}">${escapeHtml(f.label)}</option>`).join('')}
+    </select>
+
+    <div class="divider"></div>
+
+    <div class="notice ${c.bust ? 'bad' : 'good'}">
+      <div class="kv"><span>Dados seleccionados</span><b>${c.totalDice}/8</b></div>
+      <div class="kv"><span>Calaveras totales</span><b>${c.skullsTotal}</b></div>
+      <div class="kv"><span>Puntos del turno</span><b>${Math.trunc(c.points).toLocaleString('es-ES')}</b></div>
+      ${c.canSkullIsland ? `<div class="small" style="margin-top:6px"><b>Isla Calavera</b> disponible (4+ calaveras).</div>` : ''}
+    </div>
+
+    <div style="margin-top:12px" class="right">
+      <button class="btn btn-ghost" id="endToSetup">Nueva partida</button>
+      <button class="btn btn-secondary" id="confirmDice" ${c.canConfirm ? '' : 'disabled'} style="filter:${c.canConfirm?'none':'grayscale(1) opacity(.65)'}">
+        Confirmar dados
+      </button>
+    </div>
+
+    <div class="divider"></div>
+    <div class="small muted">
+      ${c.notes.length ? c.notes.map(n => `• ${escapeHtml(n)}`).join('<br>') : 'Selecciona carta y reparte los 8 dados.'}
+      ${state.turn.fortune === 'chest' ? `<br><br><b>Botín</b>: pendiente de implementar (guardar/retirar dados en la carta).` : ''}
+    </div>
+  `;
+
+  const right = document.createElement('div');
+  right.className = 'card';
+  right.innerHTML = `
+    <h2>🧮 Dados (8)</h2>
+    <div id="counters" style="display:flex;flex-direction:column;gap:10px"></div>
+  `;
+
+  const counters = right.querySelector('#counters');
+  for (const t of DICE_TYPES){
+    const val = state.turn.dice[t.key] || 0;
+    const item = document.createElement('div');
+    item.className = 'counter';
+    item.innerHTML = `
+      <div>
+        <div class="name">${t.emoji} ${escapeHtml(t.label)}</div>
+        <div class="sub">Seleccionados: ${val}</div>
+      </div>
+      <div class="ctl">
+        <button class="mini" data-k="${t.key}" data-d="-1">−</button>
+        <div class="num">${val}</div>
+        <button class="mini" data-k="${t.key}" data-d="1">+</button>
+      </div>
+    `;
+    item.querySelectorAll('button.mini').forEach(b=>{
+      b.onclick = () => adjustDie(b.dataset.k, parseInt(b.dataset.d,10));
+    });
+    counters.appendChild(item);
+  }
+
+  el.append(renderScoreboard(), left, right);
+
+  // bind
+  const fortuneSel = left.querySelector('#fortuneSel');
+  fortuneSel.value = state.turn.fortune;
+  fortuneSel.onchange = (e) => setFortune(e.target.value);
+
+  left.querySelector('#confirmDice').onclick = () => confirmDiceSelection();
+  left.querySelector('#endToSetup').onclick = async () => {
+    const ok = await modalConfirm({
+      title:'Nueva partida',
+      body:'Se perderá la partida actual. ¿Continuar?',
+      okText:'Sí, empezar de nuevo',
+      cancelText:'Cancelar'
+    });
+    if (ok) resetToSetup();
+  };
+
+  return el;
+}
+
+function renderSkullIsland(){
+  const el = document.createElement('div');
+  el.className = 'grid';
+
+  const left = document.createElement('div');
+  left.className = 'card';
+  const idx = state.currentPlayerIndex;
+  const active = state.players[idx];
+
+  const perSkull = computeSkullIslandPenaltyPerSkull(state.turn.fortune);
+
+  left.innerHTML = `
+    <h2>💀 Isla Calavera</h2>
+    <div class="notice bad">
+      <div class="kv"><span>Jugador activo</span><b>${escapeHtml(active.name)}</b></div>
+      <div class="kv"><span>Penalización por calavera</span><b>${perSkull}</b></div>
+      <div class="kv"><span>Calaveras acumuladas</span><b>${state.skullIsland.collectedSkulls}</b></div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="counter">
+      <div>
+        <div class="name">💀 Calaveras</div>
+        <div class="sub">Ajusta el total final</div>
+      </div>
+      <div class="ctl">
+        <button class="mini" id="skMinus">−</button>
+        <div class="num">${state.skullIsland.collectedSkulls}</div>
+        <button class="mini" id="skPlus">+</button>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+    <div class="right">
+      <button class="btn btn-ghost" id="backTurn">Volver</button>
+      <button class="btn btn-secondary" id="apply">Aplicar penalización</button>
+    </div>
+
+    <div class="divider"></div>
+    <div class="small muted">
+      En Isla Calavera el jugador no puntúa y los demás pierden ${perSkull} por calavera (con Pirata: 200) [page:1].
+    </div>
+  `;
+
+  el.append(renderScoreboard(), left);
+
+  left.querySelector('#skMinus').onclick = () => adjustSkullIsland(-1);
+  left.querySelector('#skPlus').onclick = () => adjustSkullIsland(1);
+  left.querySelector('#apply').onclick = () => confirmSkullIsland();
+  left.querySelector('#backTurn').onclick = () => {
+    // Volver al turno para corregir dados (sin aplicar nada)
+    state.screen = 'turn';
+    render();
+  };
+
+  return el;
+}
+
+function renderFinished(){
+  const el = document.createElement('div');
+  el.className = 'card';
+  const w = winner();
+
+  el.innerHTML = `
+    <h2>🏆 Fin de partida</h2>
+    <div class="notice good">
+      <div class="kv"><span>Ganador</span><b>${escapeHtml(w.name)}</b></div>
+      <div class="kv"><span>Puntuación</span><b>${w.score.toLocaleString('es-ES')}</b></div>
+    </div>
+    <div class="divider"></div>
+    <div class="right">
+      <button class="btn btn-primary" id="new">Nueva partida</button>
+    </div>
+    <div class="divider"></div>
+    <div class="small muted">El final se gestiona con la regla de 6.000 y turnos finales según reglamento [page:1].</div>
+  `;
+
+  el.appendChild(renderScoreboard());
+
+  el.querySelector('#new').onclick = () => resetToSetup();
+  return el;
+}
+
+// Init
+resetToSetup();
+</script>
 </body>
 </html>
