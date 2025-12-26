@@ -403,7 +403,7 @@ function computeTurn(mode, fortuneKey, physicalDice){
   const skullsTotal = all.skull;
 
   // Patch canSkullIslandNow (permitir sin completar 8 dados)
-  const canSkullIslandNow = (skullsTotal >= 4 && diceTotal === 8);
+  const canSkullIslandNow = (skullsTotal >= 4); //&& diceTotal === 8);
 
   // Confirmación temprana por muerte (3ª calavera) salvo que haya Isla Calavera
   // y salvo Botín (Botín sigue exigiendo 8 dados para confirmación normal/muerte).
