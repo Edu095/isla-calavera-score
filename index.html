@@ -366,7 +366,7 @@ function computeTurn(mode, fortuneKey, physicalDice){
 
   // Confirmación temprana por muerte (3ª calavera termina el turno) [page:1].
   // Excepción: Botín exige 8 dados porque introduces resultado final completo.
-  const earlyDeath = skullsTotal >= 3 && fortuneKey !== 'chest';
+  const earlyDeath = (skullsTotal >= 3 && skullsTotal < 4) && fortuneKey !== 'chest';
   const canConfirm = (diceTotal === 8) || earlyDeath;
 
   const computed = {
