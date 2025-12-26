@@ -153,9 +153,10 @@
 <script>
 /**
  * Reglas (reglamento ES):
- * - Al sacar la 3ª calavera el turno termina inmediatamente y no se puntúa [page:1].
- * - Con Botín, si sale la 3ª calavera, no puedes meter más dados y SOLO puntúan los ya guardados [page:1].
- * - Con una calavera no hay bonificación de +500 [page:1].
+ * - Primera tirada siempre con 8 dados [page:0].
+ * - Muerte al obtener 3ª calavera => 0 puntos [page:0].
+ * - Isla Calavera: si saca 4+ calaveras en primera tirada con 8 dados [page:0].
+ * - Botín: si sale la 3ª calavera, no puede colocar más dados; sólo puntúan los que ya estuvieran en la carta [page:0].
  */
 
 const DICE_TYPES = [
@@ -167,7 +168,6 @@ const DICE_TYPES = [
   { key:'diamond', label:'Diamante', emoji:'💎' },
 ];
 
-// Botín: no guardamos calaveras (UX) y además no aportan puntos
 const CHEST_ALLOWED = ['saber','monkey','parrot','gold','diamond'];
 
 const FORTUNE = [
@@ -257,7 +257,6 @@ function mergeDice(base, picked){
 }
 
 function validateChestSelection(finalDicePhysical, chestDice){
-  // No calaveras en botín
   if ((chestDice.skull||0) !== 0){
     return { ok:false, sum:0, reasons:['Botín: no se pueden guardar calaveras.'] };
   }
@@ -285,14 +284,7 @@ function computePointsFromDice(mode, fortuneKey, allDiceCounts){
   const pirateMultiplier = (fortuneKey === 'pirate') ? 2 : 1;
 
   if (bust){
-    return {
-      points: 0,
-      fullChestBonus: 0,
-      shipBonusOrPenalty: 0,
-      pirateMultiplier,
-      bust: true,
-      notes: ['3+ calaveras: el turno normal puntúa 0.']
-    };
+    return { points:0, fullChestBonus:0, pirateMultiplier, bust:true, notes:['3+ calaveras: turno puntúa 0.'] };
   }
 
   let faceValue = (d.gold + d.diamond) * 100;
@@ -312,12 +304,9 @@ function computePointsFromDice(mode, fortuneKey, allDiceCounts){
 
   let setScore = 0;
   for (const t of setTypes){
-    if (t.n >= 3){
-      setScore += SET_POINTS[t.n] || 0;
-    }
+    if (t.n >= 3) setScore += SET_POINTS[t.n] || 0;
   }
 
-  // Barco Pirata [page:1]
   let shipReq = null;
   let shipValue = 0;
   if (fortuneKey === 'ship2'){ shipReq = 2; shipValue = 300; }
@@ -333,11 +322,10 @@ function computePointsFromDice(mode, fortuneKey, allDiceCounts){
       shipBonusOrPenalty = -shipValue;
       notes.push(`Barco Pirata: no llegas a ${shipReq} sables, 0 puntos y -${shipValue}.`);
       const p = clampScore(mode, shipBonusOrPenalty * pirateMultiplier);
-      return { points: p, fullChestBonus: 0, shipBonusOrPenalty, pirateMultiplier, bust:false, notes };
+      return { points:p, fullChestBonus:0, pirateMultiplier, bust:false, notes };
     }
   }
 
-  // Cofre completo +500 y “con una calavera no hay bonificación” [page:1]
   let fullChestBonus = 0;
   const anyPoints = (faceValue + setScore + Math.max(0, shipBonusOrPenalty)) > 0;
   if (d.skull === 0 && anyPoints){
@@ -353,9 +341,59 @@ function computePointsFromDice(mode, fortuneKey, allDiceCounts){
     notes.push('Carta Calavera: no hay bono de cofre completo.');
   }
 
-  return { points, fullChestBonus, shipBonusOrPenalty, pirateMultiplier, bust:false, notes };
+  return { points, fullChestBonus, pirateMultiplier, bust:false, notes };
 }
 
+function computeSkullIslandPenaltyPerSkull(fortuneKey){
+  if (fortuneKey === 'pirate') return 200;
+  return 100;
+}
+
+// Opción A: auto-guardar manual (ayuda)
+function chestAutoSuggest(physicalDice){
+  const chest = initDiceCounts();
+
+  const candidates = ['saber','monkey','parrot'];
+  let bestKey = null;
+  let bestN = 0;
+  for (const k of candidates){
+    const n = physicalDice[k] || 0;
+    if (n > bestN){ bestN = n; bestKey = k; }
+  }
+  if (bestKey && bestN >= 3){
+    chest[bestKey] = bestN;
+  }
+
+  chest.gold = physicalDice.gold || 0;
+  chest.diamond = physicalDice.diamond || 0;
+
+  let used = (chest.saber + chest.monkey + chest.parrot + chest.gold + chest.diamond);
+  let remaining = 8 - used;
+
+  if (remaining > 0){
+    const others = candidates.filter(k => k !== bestKey).sort((a,b)=>(physicalDice[b]||0)-(physicalDice[a]||0));
+    for (const k of others){
+      if (remaining <= 0) break;
+      const n = physicalDice[k] || 0;
+      const add = Math.min(n, remaining);
+      chest[k] = add;
+      remaining -= add;
+    }
+  }
+
+  chest.skull = 0;
+  for (const k of CHEST_ALLOWED){
+    chest[k] = Math.min(chest[k] || 0, physicalDice[k] || 0);
+  }
+  return chest;
+}
+
+/**
+ * PATCH PRINCIPAL: computeTurn
+ * - canSkullIslandNow: si hay 4+ calaveras, activamos Isla Calavera aunque no se hayan puesto los 8 dados.
+ *   (Interpretación UX “resultado final”: el resto de símbolos no importan en Isla Calavera.) [page:0]
+ * - Isla Calavera tiene prioridad sobre muerte temprana.
+ */
 function computeTurn(mode, fortuneKey, physicalDice){
   const notes = [];
   const baseFromCard = applyFortuneBaseDice(fortuneKey);
@@ -364,10 +402,16 @@ function computeTurn(mode, fortuneKey, physicalDice){
   const diceTotal = totalDice(physicalDice);
   const skullsTotal = all.skull;
 
-  // Confirmación temprana por muerte (3ª calavera termina el turno) [page:1].
-  // Excepción: Botín exige 8 dados porque introduces resultado final completo.
-  const earlyDeath = (skullsTotal >= 3 && skullsTotal < 4) && fortuneKey !== 'chest';
-  const canConfirm = (diceTotal === 8) || earlyDeath;
+  // Patch canSkullIslandNow (permitir sin completar 8 dados)
+  const canSkullIslandNow = (skullsTotal >= 4 && diceTotal === 8);
+
+  // Confirmación temprana por muerte (3ª calavera) salvo que haya Isla Calavera
+  // y salvo Botín (Botín sigue exigiendo 8 dados para confirmación normal/muerte).
+  const earlyDeath = (skullsTotal >= 3) && !canSkullIslandNow && (fortuneKey !== 'chest');
+
+  // Confirmar si: 8 dados, o muerte temprana, o isla calavera “now”
+  // (para Botín, si canSkullIslandNow true también permitimos confirmar y pasar a Isla Calavera)
+  const canConfirm = (diceTotal === 8) || earlyDeath || canSkullIslandNow;
 
   const computed = {
     canConfirm,
@@ -379,10 +423,11 @@ function computeTurn(mode, fortuneKey, physicalDice){
     canSkullIsland: false,
     skullIslandBaseSkulls: 0,
     earlyDeath,
+    canSkullIslandNow,
   };
 
-  // Isla Calavera solo con 8 dados físicos [page:1]
-  if (diceTotal === 8 && skullsTotal >= 4){
+  // Si Isla Calavera aplica, prioridad absoluta
+  if (canSkullIslandNow){
     computed.canSkullIsland = true;
     computed.skullIslandBaseSkulls = skullsTotal;
     computed.points = 0;
@@ -401,65 +446,11 @@ function computeTurn(mode, fortuneKey, physicalDice){
     return computed;
   }
 
+  // Si estamos aquí, es turno normal con puntuación (o Botín con <8 no se deja confirmar salvo por isla calavera)
   const normal = computePointsFromDice(mode, fortuneKey, all);
   computed.points = normal.points;
   notes.push(...normal.notes);
   return computed;
-}
-
-function computeSkullIslandPenaltyPerSkull(fortuneKey){
-  if (fortuneKey === 'pirate') return 200;
-  return 100;
-}
-
-// Heurística simple para auto-guardado (opción A):
-// - intenta guardar el "núcleo" que maximiza puntos por sets
-// - y luego guarda monedas/diamantes sueltos por su valor 100 cada una
-// No es “correcto” en todos los casos, pero sirve como ayuda y el jugador puede ajustarlo.
-function chestAutoSuggest(physicalDice){
-  const chest = initDiceCounts();
-  // 1) Candidato a set grande entre: saber, monkey, parrot
-  const candidates = ['saber','monkey','parrot'];
-  let bestKey = null;
-  let bestN = 0;
-  for (const k of candidates){
-    const n = physicalDice[k] || 0;
-    if (n > bestN){ bestN = n; bestKey = k; }
-  }
-
-  // Guardar un set completo de la mayor cantidad (si hay >=3)
-  if (bestKey && bestN >= 3){
-    chest[bestKey] = bestN;
-  }
-
-  // 2) Guardar todas las monedas/diamantes (valor fijo por dado)
-  chest.gold = physicalDice.gold || 0;
-  chest.diamond = physicalDice.diamond || 0;
-
-  // 3) Si queda espacio (por si has guardado muy poco), añade el segundo mejor set (hasta llenar 8)
-  const used = (chest.saber + chest.monkey + chest.parrot + chest.gold + chest.diamond);
-  let remaining = 8 - used;
-
-  if (remaining > 0){
-    const others = candidates.filter(k => k !== bestKey).sort((a,b)=>(physicalDice[b]||0)-(physicalDice[a]||0));
-    for (const k of others){
-      if (remaining <= 0) break;
-      const n = physicalDice[k] || 0;
-      const add = Math.min(n, remaining);
-      chest[k] = add;
-      remaining -= add;
-    }
-  }
-
-  // Nunca calaveras
-  chest.skull = 0;
-
-  // Clamp por seguridad
-  for (const k of CHEST_ALLOWED){
-    chest[k] = Math.min(chest[k] || 0, physicalDice[k] || 0);
-  }
-
-  return chest;
 }
 
 // Estado
@@ -475,8 +466,8 @@ const state = {
 
   turn: {
     fortune: 'none',
-    dice: initDiceCounts(),        // dados físicos
-    chest: initDiceCounts(),       // guardados (manual, empieza 0)
+    dice: initDiceCounts(),
+    chest: initDiceCounts(),
     computed: null
   },
 
@@ -531,7 +522,7 @@ function startTurn(){
 function setFortune(fKey){
   state.turn.fortune = fKey;
   state.turn.dice = initDiceCounts();
-  state.turn.chest = initDiceCounts(); // opción A: manual por defecto
+  state.turn.chest = initDiceCounts();
   state.turn.computed = computeTurn(state.mode, state.turn.fortune, state.turn.dice);
   render();
 }
@@ -543,10 +534,8 @@ function adjustDie(key, delta){
 
   state.turn.dice = d;
 
-  // Opción A: NO recalcular automáticamente el botín al cambiar dados.
-  // Si el usuario quiere ayuda, usa el botón “Auto‑guardar” manualmente.
+  // Clamp botín manual
   if (state.turn.fortune === 'chest'){
-    // Clamp por si el usuario baja un tipo por debajo de lo guardado manualmente
     for (const k of CHEST_ALLOWED){
       state.turn.chest[k] = Math.min(state.turn.chest[k] || 0, state.turn.dice[k] || 0);
     }
@@ -583,7 +572,7 @@ async function confirmDiceSelection(){
   const c = state.turn.computed;
   if (!c.canConfirm) return;
 
-  // Isla Calavera
+  // Isla Calavera (ahora puede dispararse con <8 dados por canSkullIslandNow)
   if (c.canSkullIsland){
     state.screen = 'skullIsland';
     state.skullIsland.collectedSkulls = c.skullIslandBaseSkulls;
@@ -596,18 +585,17 @@ async function confirmDiceSelection(){
   const fortune = state.turn.fortune;
   const physical = state.turn.dice;
 
-  // Muerte temprana (>=3 calaveras) y NO Botín => 0 puntos [page:1]
   if (c.earlyDeath && fortune !== 'chest'){
     finishTurnAndAdvance(player);
     return;
   }
 
-  // Botín: para confirmar exigimos 8 dados físicos (resultado final completo)
   if (fortune === 'chest'){
+    // Si no estamos en isla calavera, Botín exige 8 dados para confirmar (resultado final completo).
     if (totalDice(physical) !== 8){
       await modalConfirm({
         title:'Botín',
-        body:'Con Botín debes introducir el resultado final completo (8 dados) antes de confirmar.',
+        body:'Con Botín debes introducir el resultado final completo (8 dados) antes de confirmar, salvo que entres en Isla Calavera.',
         okText:'OK', cancelText:'Cerrar'
       });
       return;
@@ -621,21 +609,15 @@ async function confirmDiceSelection(){
 
     const bust = (physical.skull || 0) >= 3;
     if (bust){
-      // Solo puntúan los dados ya guardados [page:1]
       const chestDice = {...state.turn.chest};
       chestDice.skull = 0;
 
-      // No carta (ni pirata, ni barco), y SIN bono de +500 si hay calaveras [page:1].
-      // computePointsFromDice ya impide +500 si skull>0 (aquí skull=0), así que lo bloqueamos explícitamente:
-      // En Botín al morir, aunque los guardados no tengan calaveras, venimos de una situación con calaveras en turno,
-      // así que no se debe aplicar el “cofre completo” [page:1].
       const tmp = computePointsFromDice(state.mode, 'none', chestDice);
-      const gained = tmp.points; // tmp.fullChestBonus podría ser 500 si chestDice no tiene skull y anyPoints, lo anulamos:
-      const gainedNoChestBonus = gained - (tmp.fullChestBonus || 0);
+      const gainedNoChestBonus = tmp.points - (tmp.fullChestBonus || 0);
 
       const ok = await modalConfirm({
         title: 'Muerte con Botín',
-        body: `Has sacado 3+ calaveras. Con Botín, sólo puntúan los dados guardados (sin bonificación de cofre): +${Math.trunc(gainedNoChestBonus).toLocaleString('es-ES')} puntos [page:1].`,
+        body: `Has sacado 3+ calaveras. Con Botín, sólo puntúan los dados guardados (sin bonificación de cofre): +${Math.trunc(gainedNoChestBonus).toLocaleString('es-ES')} puntos [page:0].`,
         okText: 'Aplicar',
         cancelText: 'Cancelar'
       });
@@ -646,16 +628,14 @@ async function confirmDiceSelection(){
       return;
     }
 
-    // No muere: puntúa normal (modelo resultado final)
     player.score = clampScore(state.mode, player.score + c.points);
     finishTurnAndAdvance(player);
     return;
   }
 
-  // Turno normal (8 dados)
   player.score = clampScore(state.mode, player.score + c.points);
 
-  // Magia 9 dados [page:1]
+  // Magia 9 dados [page:0]
   const base = applyFortuneBaseDice(fortune);
   const all = mergeDice(base, physical);
   const magicWin =
@@ -726,7 +706,6 @@ function winner(){
 function render(){
   const app = document.getElementById('app');
   app.innerHTML = '';
-
   if (state.screen === 'setup') app.appendChild(renderSetup());
   if (state.screen === 'names') app.appendChild(renderNames());
   if (state.screen === 'turn') app.appendChild(renderTurn());
@@ -768,7 +747,7 @@ function renderSetup(){
   right.innerHTML = `
     <h2>📌 Nota</h2>
     <div class="small muted">
-      Con Botín, si sale la 3ª calavera no puedes meter más dados y sólo puntúan los ya guardados [page:1].
+      Primera tirada con 8 dados; Isla Calavera con 4+ calaveras [page:0].
     </div>
   `;
 
@@ -864,13 +843,12 @@ function renderChestUI(){
 
   const dice = state.turn.dice;
   const chest = state.turn.chest;
-
   const totalChest = CHEST_ALLOWED.reduce((a,k)=>a+(chest[k]||0),0);
 
   wrap.innerHTML = `
     <h2>📦 Botín</h2>
     <div class="small muted">
-      Marca qué dados estaban guardados <b>antes</b> de sacar la 3ª calavera. Si mueres, sólo puntúan esos dados [page:1].
+      Marca qué dados estaban guardados <b>antes</b> de sacar la 3ª calavera. Si mueres, sólo puntúan esos dados [page:0].
     </div>
     <div class="divider"></div>
 
@@ -893,7 +871,6 @@ function renderChestUI(){
   wrap.querySelector('#clearChestBtn').onclick = () => { state.turn.chest = initDiceCounts(); render(); };
 
   const rows = wrap.querySelector('#chestRows');
-
   for (const k of CHEST_ALLOWED){
     const t = DICE_TYPES.find(x => x.key === k);
     const max = dice[k] || 0;
@@ -901,7 +878,6 @@ function renderChestUI(){
 
     const row = document.createElement('div');
     row.className = 'checkrow';
-
     row.innerHTML = `
       <div>
         <div style="font-weight:900">${t.emoji} ${escapeHtml(t.label)} <span class="tag">(han salido: ${max})</span></div>
@@ -911,16 +887,13 @@ function renderChestUI(){
         <input type="text" inputmode="numeric" pattern="[0-9]*" id="chv-${k}" value="${val}" style="width:72px;text-align:center" ${max===0?'disabled':''}/>
       </div>
     `;
-
     const inp = row.querySelector(`#chv-${k}`);
     inp.oninput = (e) => {
       e.target.value = e.target.value.replace(/[^\d]/g,'');
       setChestCount(k, e.target.value);
     };
-
     rows.appendChild(row);
   }
-
   return wrap;
 }
 
@@ -932,7 +905,6 @@ function renderTurn(){
   left.className = 'card';
 
   const c = state.turn.computed;
-
   const confirmEnabled = c.canConfirm;
   const confirmStyle = confirmEnabled ? 'none' : 'grayscale(1) opacity(.65)';
 
@@ -950,9 +922,9 @@ function renderTurn(){
       <div class="kv"><span>Dados seleccionados</span><b>${c.totalDice}/8</b></div>
       <div class="kv"><span>Calaveras totales</span><b>${c.skullsTotal}</b></div>
       <div class="kv"><span>Puntos del turno</span><b>${Math.trunc(c.points).toLocaleString('es-ES')}</b></div>
-      ${c.canSkullIsland ? `<div class="small" style="margin-top:6px"><b>Isla Calavera</b> disponible (4+ calaveras con 8 dados).</div>` : ''}
+      ${c.canSkullIsland ? `<div class="small" style="margin-top:6px"><b>Isla Calavera</b> disponible (4+ calaveras).</div>` : ''}
       ${c.earlyDeath ? `<div class="small" style="margin-top:6px"><b>Muerte</b>: puedes confirmar ya (esta carta no requiere 8 dados).</div>` : ''}
-      ${state.turn.fortune === 'chest' && (state.turn.dice.skull >= 3) ? `<div class="small" style="margin-top:6px"><b>Muerte</b>: con Botín puntuarán sólo los guardados (y debes tener 8 dados).</div>` : ''}
+      ${state.turn.fortune === 'chest' && (state.turn.dice.skull >= 3) && !c.canSkullIsland ? `<div class="small" style="margin-top:6px"><b>Muerte</b>: con Botín debes completar 8 dados (salvo Isla Calavera).</div>` : ''}
     </div>
 
     <div style="margin-top:12px" class="right">
@@ -972,7 +944,7 @@ function renderTurn(){
   right.className = 'card';
   right.innerHTML = `
     <h2>🧮 Dados (hasta 8)</h2>
-    <div class="small muted">Sin Botín: al sacar 3 calaveras puedes confirmar sin llegar a 8 (muerte inmediata) [page:1].</div>
+    <div class="small muted">Sin Botín: al sacar 3 calaveras puedes confirmar sin llegar a 8 (muerte inmediata) [page:0].</div>
     <div class="divider"></div>
     <div id="counters" style="display:flex;flex-direction:column;gap:10px"></div>
   `;
@@ -1000,10 +972,7 @@ function renderTurn(){
   }
 
   el.append(renderScoreboard(), left, right);
-
-  if (state.turn.fortune === 'chest'){
-    el.append(renderChestUI());
-  }
+  if (state.turn.fortune === 'chest') el.append(renderChestUI());
 
   const fortuneSel = left.querySelector('#fortuneSel');
   fortuneSel.value = state.turn.fortune;
@@ -1064,7 +1033,7 @@ function renderSkullIsland(){
 
     <div class="divider"></div>
     <div class="small muted">
-      En Isla Calavera el jugador no puntúa y los demás pierden ${perSkull} por calavera (con Pirata: 200) [page:1].
+      En Isla Calavera el jugador no puntúa y los demás pierden ${perSkull} por calavera (con Pirata: 200) [page:0].
     </div>
   `;
 
@@ -1124,122 +1093,6 @@ async function confirmSkullIsland(){
   startTurn();
 }
 
-function renderSetup(){ /* ya definido arriba */ return document.createTextNode(''); }
-function renderNames(){ /* ya definido arriba */ return document.createTextNode(''); }
-
-// Sobrescribimos con las definiciones correctas (evitar duplicados)
-const _renderSetup = () => {
-  const el = document.createElement('div');
-  el.className = 'grid';
-
-  const left = document.createElement('div');
-  left.className = 'card';
-  left.innerHTML = `
-    <h2>⚙️ Configuración</h2>
-
-    <label>Modo de juego</label>
-    <select id="modeSel">
-      <option value="normal">Normal (no baja de 0)</option>
-      <option value="hardcore">Hardcore (permite negativo)</option>
-    </select>
-
-    <label>Número de jugadores</label>
-    <div class="row" style="margin-top:8px">
-      <button class="btn btn-primary" data-n="2">2</button>
-      <button class="btn btn-primary" data-n="3">3</button>
-      <button class="btn btn-primary" data-n="4">4</button>
-      <button class="btn btn-primary" data-n="5">5</button>
-    </div>
-
-    <div class="divider"></div>
-    <div class="right">
-      <button class="btn btn-secondary" id="goNames">Continuar</button>
-    </div>
-  `;
-
-  const right = document.createElement('div');
-  right.className = 'card';
-  right.innerHTML = `
-    <h2>📌 Nota</h2>
-    <div class="small muted">
-      Con Botín, si sale la 3ª calavera no puedes meter más dados y sólo puntúan los ya guardados [page:1].
-    </div>
-  `;
-
-  el.append(left, right);
-
-  const modeSel = left.querySelector('#modeSel');
-  modeSel.value = state.mode;
-  modeSel.onchange = (e) => { state.mode = e.target.value; };
-
-  left.querySelectorAll('button[data-n]').forEach(btn => {
-    btn.onclick = () => { state.numPlayers = parseInt(btn.dataset.n,10); render(); };
-    btn.style.filter = (parseInt(btn.dataset.n,10) === state.numPlayers) ? 'brightness(1.08)' : 'brightness(.92)';
-  });
-
-  left.querySelector('#goNames').onclick = () => {
-    state.players = Array.from({length: state.numPlayers}, (_, i) => ({
-      id: cryptoRandomId(),
-      name: `Pirata ${String.fromCharCode(65+i)}`,
-      score: 0
-    }));
-    state.screen = 'names';
-    render();
-  };
-
-  return el;
-};
-
-const _renderNames = () => {
-  const el = document.createElement('div');
-  el.className = 'card';
-
-  el.innerHTML = `
-    <h2>👥 Jugadores</h2>
-    <div class="small muted">Edita los nombres y confirma para empezar. El jugador inicial será aleatorio.</div>
-    <div class="divider"></div>
-    <div id="namesGrid" class="grid"></div>
-    <div class="divider"></div>
-    <div class="right">
-      <button class="btn btn-ghost" id="back">Volver</button>
-      <button class="btn btn-secondary" id="confirm">Empezar partida</button>
-    </div>
-  `;
-
-  const grid = el.querySelector('#namesGrid');
-  state.players.forEach((p, i) => {
-    const c = document.createElement('div');
-    c.className = 'card';
-    c.style.background = 'rgba(0,0,0,.22)';
-    c.innerHTML = `
-      <div class="pill"><span>🏴‍☠️</span><span>${i+1}</span><small>Jugador</small></div>
-      <label>Nombre</label>
-      <input type="text" value="${escapeHtml(p.name)}" />
-      <div class="small muted" style="margin-top:8px">Puntuación inicial: 0</div>
-    `;
-    c.querySelector('input').oninput = (e) => { state.players[i].name = e.target.value.trim().slice(0,24) || state.players[i].name; };
-    grid.appendChild(c);
-  });
-
-  el.querySelector('#back').onclick = () => { state.screen='setup'; render(); };
-  el.querySelector('#confirm').onclick = async () => {
-    for (const p of state.players){
-      if (!p.name || !p.name.trim()){
-        await modalConfirm({title:'Nombre inválido', body:'Todos los jugadores deben tener nombre.', okText:'OK', cancelText:'Cerrar'});
-        return;
-      }
-    }
-    beginGame();
-  };
-
-  return el;
-};
-
-// parche: re-apuntar renderers a las versiones finales
-function renderSetup(){ return _renderSetup(); }
-function renderNames(){ return _renderNames(); }
-
-// Init
 resetToSetup();
 </script>
 </body>
